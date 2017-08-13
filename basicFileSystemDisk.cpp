@@ -20,7 +20,7 @@ int BasicFileSystemDisk::read_block(const char* name, unsigned long block_index,
 
 int BasicFileSystemDisk::write_block(const char* name, unsigned long block_index, const char *buffer){
 	ofstream outfile;
-	outfile.open(name, ios::binary | ios::out);
+	outfile.open(name, ios::binary | ios::out | ios::in);
 	outfile.seekp(block_index*getBlockSize(), ios::beg);
 	outfile.write(buffer, getBlockSize());
 	outfile.close();
@@ -33,8 +33,8 @@ int main(int argc, char const *argv[])
 	char* buffer = (char*)calloc(1, fs.getBlockSize());
 	strncpy(buffer, "Hola mi amigo!", fs.getBlockSize());
 	fs.write_block((char*)"/home/segebre/Desktop/Mount/Test.txt", 0, buffer);
-	char* buffer2 = new char[fs.getBlockSize()];
-	fs.read_block((char*)"/home/segebre/Desktop/Mount/Test.txt", 0, buffer2);
-	printf("%s\n", buffer2);
+	// char* buffer2 = new char[fs.getBlockSize()];
+	// fs.read_block((char*)"/home/segebre/Desktop/Mount/Test.txt", 0, buffer2);
+	// printf("%s\n", buffer2);
 	return 0;
 }
