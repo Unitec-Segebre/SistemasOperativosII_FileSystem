@@ -10,7 +10,7 @@ int BasicFileSystemDisk::format(const char* name, unsigned long size){
 	outfile.close();
 }
 
-int BasicFileSystemDisk::read_block(const char* name, int block_index, char *buffer){
+int BasicFileSystemDisk::read_block(const char* name, unsigned long block_index, char *buffer){
 	ifstream infile;
 	infile.open(name, ios::binary | ios::in);
 	infile.seekg(block_index*getBlockSize(), ios::beg);
@@ -18,7 +18,7 @@ int BasicFileSystemDisk::read_block(const char* name, int block_index, char *buf
 	infile.close();	
 }
 
-int BasicFileSystemDisk::write_block(const char* name, int block_index, const char *buffer){
+int BasicFileSystemDisk::write_block(const char* name, unsigned long block_index, const char *buffer){
 	ofstream outfile;
 	outfile.open(name, ios::binary | ios::out);
 	outfile.seekp(block_index*getBlockSize(), ios::beg);
@@ -29,13 +29,12 @@ int BasicFileSystemDisk::write_block(const char* name, int block_index, const ch
 int main(int argc, char const *argv[])
 {
 	BasicFileSystemDisk fs;
-	printf("%lu\n", (unsigned long)fs.getBlockSize()*1024*512);
 	fs.format((char*)"/home/segebre/Desktop/Mount/Test.txt", (unsigned long)fs.getBlockSize()*1024*800);
 	char* buffer = (char*)calloc(1, fs.getBlockSize());
 	strncpy(buffer, "Hola mi amigo!", fs.getBlockSize());
-	fs.write_block((char*)"/media/segebre/FileSystemT/Test.txt", 0, buffer);
+	fs.write_block((char*)"/home/segebre/Desktop/Mount/Test.txt", 0, buffer);
 	char* buffer2 = new char[fs.getBlockSize()];
-	fs.read_block((char*)"/media/segebre/FileSystemT/Test.txt", 0, buffer2);
+	fs.read_block((char*)"/home/segebre/Desktop/Mount/Test.txt", 0, buffer2);
 	printf("%s\n", buffer2);
 	return 0;
 }
