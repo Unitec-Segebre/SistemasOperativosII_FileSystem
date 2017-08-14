@@ -14,6 +14,7 @@ private:
 	int getBit(char sequence, int bitNumber);
 	int setBit(char* sequence, int bitNumber, char value);
 	unsigned long getFreeBlock(const char* name, BasicFileSystem* fs);
+	unsigned long reserveFreeBlock(const char* name, BasicFileSystem* fs, unsigned long block_index);
 };
 
 

@@ -1,6 +1,6 @@
 #include "FileSystem.h"
 
-struct metadata
+struct fs_metadata
 {
 	unsigned long disk_size;
 	unsigned long disk_block_count;
@@ -10,6 +10,14 @@ struct metadata
 	unsigned long bitmap_block_end;
 	unsigned long master_directory_block_start;
 	unsigned long master_directory_file_count;
+};
+
+struct file_metadata
+{
+	char name[40];
+	unsigned long size;
+	unsigned long block_start;
+	unsigned long block_end;
 };
 
 int FileSystem::create_disk(const char* name, storage_t type, unsigned long size){
@@ -28,7 +36,7 @@ int FileSystem::create_disk(const char* name, storage_t type, unsigned long size
 		return 0;
 	}
 
-	struct metadata fs_metadata;
+	struct fs_metadata fs_metadata;
 	fs_metadata.disk_block_count = ((size-1)/fs->getBlockSize())+1;
 	if (fs_metadata.disk_block_count < 3){
 		printf("%s\n", "Not enough blocks");
@@ -54,8 +62,8 @@ int FileSystem::create_disk(const char* name, storage_t type, unsigned long size
 	//format disk
 	fs->format(name, fs_metadata.disk_size);
 
-	//write metadata
-	memcpy(buffer, &fs_metadata, sizeof(struct metadata));
+	//write fs_metadata
+	memcpy(buffer, &fs_metadata, sizeof(struct fs_metadata));
 	// printf("%lu\n", (fs_metadata.disk_size));
 	// printf("%lu\n", *((unsigned long*)(buffer+(sizeof(unsigned long)*0))));
 	fs->write_block(name, fs_metadata.bitmap_block_start-1, buffer);
@@ -66,7 +74,7 @@ int FileSystem::create_disk(const char* name, storage_t type, unsigned long size
 	setBit(&(buffer[0]), 0, 1);
 	setBit(&(buffer[0]), 1, 1);
 	int i;
-	for (i = 2; i <= fs_metadata.bitmap_block_count + 2; i++){
+	for (i = fs_metadata.bitmap_block_start; i <= fs_metadata.master_directory_block_start; i++){
 		setBit(&(buffer[(i/8)%fs->getBlockSize()]), i%8, 1);
 		// if(/*buffer[(i/8)%fs->getBlockSize()] > 0*/ true){
 		// 	for (int j = 0; j < 8; j++) {
@@ -83,12 +91,25 @@ int FileSystem::create_disk(const char* name, storage_t type, unsigned long size
 	fs->write_block(name, fs_metadata.bitmap_block_start+((i/8)/fs->getBlockSize()), buffer);
 	free(buffer);
 	printf("NEXT BLOCK!!!: %lu\n", getFreeBlock(name, fs));
+	reserveFreeBlock(name, fs, getFreeBlock(name, fs));
+	reserveFreeBlock(name, fs, getFreeBlock(name, fs));
+	reserveFreeBlock(name, fs, getFreeBlock(name, fs));
+	reserveFreeBlock(name, fs, getFreeBlock(name, fs));
+	printf("NEXT BLOCK!!!: %lu\n", getFreeBlock(name, fs));
 	delete fs;
 	
 }
 
 int FileSystem::add_file(const char* name, storage_t type, const char* file_name){
-	
+	// ifstream infile;
+	// infile.open(file_name, ios::binary | ios::in);
+	// if(!infile){
+	// 	printf("%s\n", "opening cp file err");
+	// 	return -1;
+	// }
+	// infile.seekg(0, ios::end);
+	// infile.read(buffer, getBlockSize());
+	// infile.close();
 
 }
 
@@ -104,12 +125,12 @@ int FileSystem::setBit(char* sequence, int bitNumber, char value){
 }
 
 unsigned long FileSystem::getFreeBlock(const char* name, BasicFileSystem* fs){
-	struct metadata fs_metadata;
+	struct fs_metadata fs_metadata;
 	char* buffer;
 
 	buffer = (char*)calloc(1, fs->getBlockSize());
 	fs->read_block(name, 1, buffer);
-	memcpy(&fs_metadata, buffer, sizeof(struct metadata));
+	memcpy(&fs_metadata, buffer, sizeof(struct fs_metadata));
 	for (int current_block = fs_metadata.bitmap_block_start; current_block <= fs_metadata.bitmap_block_end; current_block++){
 		free(buffer);
 		buffer = (char*)calloc(1, fs->getBlockSize());
@@ -126,9 +147,30 @@ unsigned long FileSystem::getFreeBlock(const char* name, BasicFileSystem* fs){
 	free(buffer);
 }
 
+unsigned long FileSystem::reserveFreeBlock(const char* name, BasicFileSystem* fs, unsigned long block_index){
+	struct fs_metadata fs_metadata;
+	char* buffer;
+
+	buffer = (char*)calloc(1, fs->getBlockSize());
+	fs->read_block(name, 1, buffer);
+	memcpy(&fs_metadata, buffer, sizeof(struct fs_metadata));
+	if (fs_metadata.bitmap_block_start + ((block_index/8)/fs->getBlockSize()) <= fs_metadata.bitmap_block_end){
+		free(buffer);
+		buffer = (char*)calloc(1, fs->getBlockSize());
+		fs->read_block(name, fs_metadata.bitmap_block_start + ((block_index/8)/fs->getBlockSize()), buffer);
+		setBit(&(buffer[(block_index/8)%fs->getBlockSize()]), block_index%8, 1);
+		fs->write_block(name, fs_metadata.bitmap_block_start + ((block_index/8)/fs->getBlockSize()), buffer);
+	}
+	else
+		printf("%s\n", "Not enough space");
+
+	free(buffer);
+}
+
 int main(int argc, char const *argv[])
 {
 	FileSystem fs;
+	// printf("%d, %d\n", sizeof(struct fs_metadata), sizeof(struct file_metadata));
 	fs.create_disk("/home/segebre/Desktop/Mount/fstest.lol", fs.DISK, (unsigned long)4096*1024*512);
 	return 0;
 }
