@@ -35,9 +35,16 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 	fs_metadata.disk_size = fs_metadata.disk_block_count*fs->getBlockSize();
 	fs_metadata.bitmap_block_start = 2;
 	fs_metadata.bitmap_bit_count = fs_metadata.disk_block_count;
-	fs_metadata.bitmap_block_count = (((fs_metadata.bitmap_bit_count-1)/8)+1)/fs->getBlockSize();
+	fs_metadata.bitmap_block_count = (((fs_metadata.bitmap_bit_count-1)/8)/fs->getBlockSize())+1;
 	fs_metadata.bitmap_block_end = fs_metadata.bitmap_block_start + fs_metadata.bitmap_block_count - 1;
 	fs_metadata.master_directory_file_count = fs_metadata.bitmap_block_end + 1;
+
+	// printf("disk_size: %lu\n", fs_metadata.disk_size);
+	// printf("bitmap_block_start: %lu\n", fs_metadata.bitmap_block_start);
+	// printf("bitmap_bit_count: %lu\n", fs_metadata.bitmap_bit_count);
+	// printf("bitmap_block_count: %lu\n", fs_metadata.bitmap_block_count);
+	// printf("bitmap_block_end: %lu\n", fs_metadata.bitmap_block_end);
+	// printf("master_directory_file_count: %lu\n", fs_metadata.master_directory_file_count);
 
 	char* buffer = (char*)calloc(1, fs->getBlockSize());
 
@@ -46,7 +53,8 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 
 	//write metadata
 	memcpy(buffer, &fs_metadata, sizeof(struct metadata));
-	printf("%lu\n", (buffer[sizeof(unsigned long)*0]));
+	printf("%lu\n", (fs_metadata.disk_size));
+	printf("%lu\n", *((unsigned long*)(buffer+(sizeof(unsigned long)*0))));
 	fs->write_block(name, fs_metadata.bitmap_block_start-1, buffer);
 
 	//write bitmap
@@ -55,15 +63,20 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 	setBit(&(buffer[0]), 0, 1);
 	setBit(&(buffer[0]), 1, 1);
 	int i;
-	for (i = 0; i <= fs_metadata.bitmap_block_count; i++){
-		setBit(&(buffer[((i+2)/8)%fs->getBlockSize()]), (i+2)%8, 1);
-		if(((i+2)/8)%fs->getBlockSize()==0){
-			memcpy(buffer, &fs_metadata, sizeof(struct metadata));
-			fs->write_block(name, fs_metadata.bitmap_block_start+((i+2)/8)/fs->getBlockSize(), buffer);
+	for (i = 2; i <= fs_metadata.bitmap_block_count + 2; i++){
+		setBit(&(buffer[(i/8)%fs->getBlockSize()]), i%8, 1);
+		for (int j = 0; j < 8; j++) {
+	      printf("%d", !!((buffer[(j/8)%fs->getBlockSize()] << j) & 0x80));
+		}
+		printf("\n");
+		if(i%fs->getBlockSize()==0){
+			fs->write_block(name, fs_metadata.bitmap_block_start+((i/8)/fs->getBlockSize()), buffer);
 			free(buffer);
 			buffer = (char*)calloc(1, fs->getBlockSize());
 		}
 	}
+	fs->write_block(name, fs_metadata.bitmap_block_start+((i/8)/fs->getBlockSize()), buffer);
+	free(buffer);
 	
 }
 
@@ -72,7 +85,10 @@ int FileSystem::getBit(char sequence, int bitNumber){
 }
 
 int FileSystem::setBit(char* sequence, int bitNumber, char value){
-	return *sequence & ~(((~value)<<7)>>(7-bitNumber));
+	if (value)
+		*sequence |= (1u<<bitNumber);
+	else
+		*sequence &= ~(1u<<bitNumber);
 }
 
 int main(int argc, char const *argv[])
