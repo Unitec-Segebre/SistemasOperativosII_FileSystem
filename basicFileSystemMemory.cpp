@@ -33,43 +33,35 @@ int BasicFileSystemMemory::read_block(const char* name, unsigned long block_inde
 }
 
 int BasicFileSystemMemory::write_block(const char* name, unsigned long block_index, const char *buffer){
-	printf("%d\n", 1);
 	int shm_fd = shm_open(name, O_RDWR, 0666);
-	printf("%d\n", 2);
 	if (shm_fd == -1)
 		return -1;
-	printf("%d\n", 3);
 	void* ptr = mmap(0, getBlockSize(), PROT_WRITE, MAP_SHARED, shm_fd, block_index*getBlockSize());
-	printf("%d\n", 4);
 	if (ptr == MAP_FAILED)
 		return -1;
-	printf("%d\n", 5);
 	sprintf((char *)ptr, "%s", buffer);
-	printf("%d\n", 6);
 	munmap(ptr, getBlockSize());
-	printf("%d\n", 7);
 	close(shm_fd);
-	printf("%d\n", 8);
 }
 
-int main(int argc, char const *argv[])
-{
-	BasicFileSystemMemory fs;
-	// if(fs.format((char*)"Test.txt", (unsigned long)fs.getBlockSize()*5) == 1){
-	// 	printf("%s\n", "ERR");
-	// 	return 0;
-	// }
-	// char* buffer = (char*)calloc(1, fs.getBlockSize());
-	// strncpy(buffer, "Hola mi amigo!", fs.getBlockSize());
-	// if (fs.write_block((char*)"Test.txt", 0, buffer) == -1){
-	// printf("%s\n", "ERR");
-	// 	return 0;
-	// }
-	char* buffer2 = new char[fs.getBlockSize()];
-	if (fs.read_block((char*)"Test.txt", 0, buffer2) == -1){
-		printf("%s\n", "ERR");
-		return 0;
-	}
-	printf("%s\n", buffer2);
-	return 0;
-}
+// int main(int argc, char const *argv[])
+// {
+// 	BasicFileSystemMemory fs;
+// 	if(fs.format((char*)"Test.txt", (unsigned long)fs.getBlockSize()*5) == 1){
+// 		printf("%s\n", "ERR");
+// 		return 0;
+// 	}
+// 	char* buffer = (char*)calloc(1, fs.getBlockSize());
+// 	strncpy(buffer, "Hola mi amigo!", fs.getBlockSize());
+// 	if (fs.write_block((char*)"Test.txt", 0, buffer) == -1){
+// 	printf("%s\n", "ERR");
+// 		return 0;
+// 	}
+// 	char* buffer2 = new char[fs.getBlockSize()];
+// 	if (fs.read_block((char*)"Test.txt", 0, buffer2) == -1){
+// 		printf("%s\n", "ERR");
+// 		return 0;
+// 	}
+// 	printf("%s\n", buffer2);
+// 	return 0;
+// }
