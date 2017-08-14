@@ -12,7 +12,7 @@ struct metadata
 	unsigned long master_directory_file_count;
 };
 
-int FileSystem::format(const char* name, unsigned long size, storage_t type){
+int FileSystem::create_disk(const char* name, storage_t type, unsigned long size){
 	if (size <= 0){
 		printf("%s\n", "Size not acceptable");
 		return -1;
@@ -21,7 +21,7 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 	BasicFileSystem* fs;
 	if (type == DISK)
 		fs = new BasicFileSystemDisk();
-	else if(type == DISK)
+	else if(type == MEMORY)
 		fs = new BasicFileSystemMemory();
 	else{
 		printf("%s\n", "Please specify type");
@@ -56,8 +56,8 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 
 	//write metadata
 	memcpy(buffer, &fs_metadata, sizeof(struct metadata));
-	printf("%lu\n", (fs_metadata.disk_size));
-	printf("%lu\n", *((unsigned long*)(buffer+(sizeof(unsigned long)*0))));
+	// printf("%lu\n", (fs_metadata.disk_size));
+	// printf("%lu\n", *((unsigned long*)(buffer+(sizeof(unsigned long)*0))));
 	fs->write_block(name, fs_metadata.bitmap_block_start-1, buffer);
 
 	//write bitmap
@@ -68,7 +68,7 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 	int i;
 	for (i = 2; i <= fs_metadata.bitmap_block_count + 2; i++){
 		setBit(&(buffer[(i/8)%fs->getBlockSize()]), i%8, 1);
-		// if(/*buffer[(i/8)%fs->getBlockSize()] > 0*/ false){
+		// if(/*buffer[(i/8)%fs->getBlockSize()] > 0*/ true){
 		// 	for (int j = 0; j < 8; j++) {
 		//       printf("%d", !!((buffer[(i/8)%fs->getBlockSize()] << j) & 0x80));
 		// 	}
@@ -82,7 +82,14 @@ int FileSystem::format(const char* name, unsigned long size, storage_t type){
 	}
 	fs->write_block(name, fs_metadata.bitmap_block_start+((i/8)/fs->getBlockSize()), buffer);
 	free(buffer);
+	printf("NEXT BLOCK!!!: %lu\n", getFreeBlock(name, fs));
+	delete fs;
 	
+}
+
+int FileSystem::add_file(const char* name, storage_t type, const char* file_name){
+	
+
 }
 
 int FileSystem::getBit(char sequence, int bitNumber){
@@ -96,9 +103,32 @@ int FileSystem::setBit(char* sequence, int bitNumber, char value){
 		*sequence &= ~(1u<<bitNumber);
 }
 
+unsigned long FileSystem::getFreeBlock(const char* name, BasicFileSystem* fs){
+	struct metadata fs_metadata;
+	char* buffer;
+
+	buffer = (char*)calloc(1, fs->getBlockSize());
+	fs->read_block(name, 1, buffer);
+	memcpy(&fs_metadata, buffer, sizeof(struct metadata));
+	for (int current_block = fs_metadata.bitmap_block_start; current_block <= fs_metadata.bitmap_block_end; current_block++){
+		free(buffer);
+		buffer = (char*)calloc(1, fs->getBlockSize());
+		fs->read_block(name, current_block, buffer);
+		for (int current_byte = 0; current_byte < fs->getBlockSize(); current_byte++){
+			for (int current_bit = 0; current_bit < 8; current_bit++) {
+				if (!getBit(buffer[current_byte], current_bit)){
+					return ((current_block-fs_metadata.bitmap_block_start)*fs->getBlockSize()*8)+(current_byte*8)+current_bit;
+				}
+			}
+		}
+	}
+
+	free(buffer);
+}
+
 int main(int argc, char const *argv[])
 {
 	FileSystem fs;
-	fs.format("/home/segebre/Desktop/Mount/fstest.lol", (unsigned long)4096*1024*512, fs.DISK);
+	fs.create_disk("/home/segebre/Desktop/Mount/fstest.lol", fs.DISK, (unsigned long)4096*1024*512);
 	return 0;
 }
